@@ -37,6 +37,14 @@ let str_lst =
   in
   str_lst_aux "["
 
+let str_lst_int =
+  let rec str_lst_aux acc lst =
+    match lst with
+    | [] -> sprintf "%s ]" acc
+    | x :: xs -> str_lst_aux (sprintf "%s %s" acc (string_of_int x)) xs
+  in
+  str_lst_aux "["
+
 let str_lst2 =
   let rec str_lst_aux acc lst =
     match lst with
@@ -235,13 +243,14 @@ let replicate lst n =
 (*                                    drop                                    *)
 (******************************************************************************)
 
-let drop =
-  let rec drop_aux acc lst n =
+let drop lst n =
+  let rec drop_aux acc lst m =
     match lst with
     | [] -> acc
-    | x :: xs -> if n == 1 then acc @ xs else drop_aux (acc @ [ x ]) xs (n - 1)
+    | x :: xs ->
+        if m == 1 then drop_aux acc xs n else drop_aux (acc @ [ x ]) xs (m - 1)
   in
-  drop_aux []
+  drop_aux [] lst n
 
 (******************************************************************************)
 (*                                   split                                    *)
@@ -266,6 +275,46 @@ let slice lst a b =
   | _, t ->
       let s, _ = split t (b - 1) in
       s
+
+(******************************************************************************)
+(*                                   rotate                                   *)
+(******************************************************************************)
+
+let rotate lst n =
+  let m = if n < 0 then length lst + n else n in
+  let b, e = split lst m in
+  e @ b
+
+(******************************************************************************)
+(*                                 remove at                                  *)
+(******************************************************************************)
+
+let remove_at =
+  let rec remove_at_aux acc lst n =
+    match lst with
+    | [] -> acc
+    | x :: xs ->
+        if n == 0 then acc @ xs else remove_at_aux (acc @ [ x ]) xs (n - 1)
+  in
+  remove_at_aux []
+
+(******************************************************************************)
+(*                                 insert at                                  *)
+(******************************************************************************)
+
+let rec insert_at elt i lst =
+  match lst with
+  | [] -> []
+  | x :: xs -> if i == 0 then elt :: x :: xs else x :: insert_at elt (i - 1) xs
+
+(******************************************************************************)
+(*                                   range                                    *)
+(******************************************************************************)
+
+let range a b =
+  let next = if a < b then fun x -> x + 1 else fun x -> x - 1 in
+  let rec range_aux a b = if a == b then [ a ] else a :: range_aux (next a) b in
+  range_aux a b
 
 (******************************************************************************)
 (*                                    MAIN                                    *)
@@ -379,4 +428,18 @@ let () =
     (str_lst lst1) (str_lst lst2);
   printf "slice ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'] 2 6 = %s\n"
     (str_lst (slice [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h"; "i"; "j" ] 2 6));
+  printf "rotate ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'] 3 = %s\n"
+    (str_lst (rotate [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h"; "i"; "j" ] 3));
+  printf "rotate ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'] (-2) = %s\n"
+    (str_lst (rotate [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h" ] (-2)));
+  printf "remove_at ['a'; 'b'; 'c'; 'd'] 1 = %s\n"
+    (str_lst (remove_at [ "a"; "b"; "c"; "d" ] 1));
+  printf "insert_at 'alpha' 1 ['a'; 'b'; 'c'; 'd'] = %s\n"
+    (str_lst (insert_at "alpha" 1 [ "a"; "b"; "c"; "d" ]));
+  printf "insert_at 'alpha' 2 ['a'; 'b'; 'c'; 'd'] = %s\n"
+    (str_lst (insert_at "alpha" 2 [ "a"; "b"; "c"; "d" ]));
+  printf "insert_at 'alpha' 3 ['a'; 'b'; 'c'; 'd'] = %s\n"
+    (str_lst (insert_at "alpha" 3 [ "a"; "b"; "c"; "d" ]));
+  printf "range 4 9 = %s\n" (str_lst_int (range 4 9));
+  printf "range 9 4 = %s\n" (str_lst_int (range 9 4));
   ()

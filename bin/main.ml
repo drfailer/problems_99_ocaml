@@ -17,6 +17,22 @@ let str_lst =
   in
   str_lst_aux "["
 
+let str_lst2 =
+  let rec str_lst_aux acc lst =
+    match lst with
+    | [] -> sprintf "%s ]" acc
+    | x :: xs -> str_lst_aux (sprintf "%s %s" acc (str_lst x)) xs
+  in
+  str_lst_aux "["
+
+let str_lst_tuple =
+  let rec str_lst_aux acc lst =
+    match lst with
+    | [] -> sprintf "%s ]" acc
+    | (a, b) :: xs -> str_lst_aux (sprintf "%s (%d, %s)" acc a b) xs
+  in
+  str_lst_aux "["
+
 let str_bool b = if b then "true" else "false"
 
 (******************************************************************************)
@@ -112,6 +128,34 @@ let compress_term =
   compress_aux []
 
 (******************************************************************************)
+(*                                    pack                                    *)
+(******************************************************************************)
+
+let pack lst =
+  let rec pack_aux acc sublist current lst =
+    match lst with
+    | [] -> ( match sublist with [] -> acc | _ -> acc @ [ sublist ])
+    | x :: xs ->
+        if x == current then pack_aux acc (x :: sublist) x xs
+        else pack_aux (acc @ [ sublist ]) [ x ] x xs
+  in
+  match lst with [] -> [] | x :: xs -> pack_aux [] [ x ] x xs
+
+(******************************************************************************)
+(*                                   encode                                   *)
+(******************************************************************************)
+
+let encode lst =
+  let rec encode_aux acc count current lst =
+    match lst with
+    | [] -> if count > 0 then acc @ [ (count, current) ] else acc
+    | x :: xs ->
+        if x == current then encode_aux acc (count + 1) x xs
+        else encode_aux (acc @ [ (count, current) ]) 1 x xs
+  in
+  match lst with [] -> [] | x :: xs -> encode_aux [] 1 x xs
+
+(******************************************************************************)
 (*                                    MAIN                                    *)
 (******************************************************************************)
 
@@ -154,4 +198,29 @@ let () =
           [
             "a"; "a"; "a"; "a"; "b"; "c"; "c"; "a"; "a"; "d"; "e"; "e"; "e"; "e";
           ]));
+  printf
+    "pack ['a'; 'a'; 'a'; 'a'; 'b'; 'c'; 'c'; 'a'; 'a'; 'd'; 'd'; 'e'; 'e'; \
+     'e'; 'e'] = %s\n"
+    (str_lst2
+       (pack
+          [
+            "a";
+            "a";
+            "a";
+            "a";
+            "b";
+            "c";
+            "c";
+            "a";
+            "a";
+            "d";
+            "d";
+            "e";
+            "e";
+            "e";
+            "e";
+          ]));
+  printf
+        "encode ['a'; 'a'; 'a'; 'a'; 'b'; 'c'; 'c'; 'a'; 'a'; 'd'; 'e'; 'e'; 'e'; 'e'] = %s\n"
+  (str_lst_tuple (encode ["a"; "a"; "a"; "a"; "b"; "c"; "c"; "a"; "a"; "d"; "e"; "e"; "e"; "e"]));
   ()

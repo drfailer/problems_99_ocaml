@@ -1,6 +1,26 @@
 open Printf
 
 (******************************************************************************)
+(*                                   types                                    *)
+(******************************************************************************)
+
+type 'a rle = One of 'a | Many of int * 'a
+type 'a node = NodeOne of 'a | NodeMany of 'a node list
+
+(******************************************************************************)
+(*                              helper function                               *)
+(******************************************************************************)
+
+let rec foldl acc func lst =
+  match lst with [] -> acc | x :: xs -> foldl (func acc x) func xs
+
+(* let map func = *)
+(*   let rec map_aux acc lst = *)
+(*     match lst with [] -> acc | x :: xs -> map_aux (acc @ [ func x ]) xs *)
+(*   in *)
+(*   map_aux [] *)
+
+(******************************************************************************)
 (*                             to string function                             *)
 (******************************************************************************)
 
@@ -30,6 +50,15 @@ let str_lst_tuple =
     match lst with
     | [] -> sprintf "%s ]" acc
     | (a, b) :: xs -> str_lst_aux (sprintf "%s (%d, %s)" acc a b) xs
+  in
+  str_lst_aux "["
+
+let str_lst_rle =
+  let rec str_lst_aux acc lst =
+    match lst with
+    | [] -> sprintf "%s ]" acc
+    | Many (a, b) :: xs -> str_lst_aux (sprintf "%s (%d, %s)" acc a b) xs
+    | One a :: xs -> str_lst_aux (sprintf "%s %s" acc a) xs
   in
   str_lst_aux "["
 
@@ -98,13 +127,11 @@ let is_palindrom lst =
 (*                                  flatten                                   *)
 (******************************************************************************)
 
-type 'a node = One of 'a | Many of 'a node list
-
 let rec flatten lst =
   match lst with
   | [] -> []
-  | One x :: xs -> x :: flatten xs
-  | Many x :: xs -> flatten x @ flatten xs
+  | NodeOne x :: xs -> x :: flatten xs
+  | NodeMany x :: xs -> flatten x @ flatten xs
 
 (******************************************************************************)
 (*                                  compress                                  *)
@@ -156,6 +183,91 @@ let encode lst =
   match lst with [] -> [] | x :: xs -> encode_aux [] 1 x xs
 
 (******************************************************************************)
+(*                              encode modified                               *)
+(******************************************************************************)
+
+(*
+NOTE: this is the direct solution (problem 13), but we can also use the
+previously written functions. However, this solution would be less efficient
+since it introduces unecessary operations.
+*)
+let encode_mod lst =
+  let rec encode_aux acc count current lst =
+    match lst with
+    | [] ->
+        if count > 0 then
+          acc @ [ (if count == 1 then One current else Many (count, current)) ]
+        else acc
+    | x :: xs ->
+        if x == current then encode_aux acc (count + 1) x xs
+        else
+          encode_aux
+            (acc
+            @ [ (if count == 1 then One current else Many (count, current)) ])
+            1 x xs
+  in
+  match lst with [] -> [] | x :: xs -> encode_aux [] 1 x xs
+
+(******************************************************************************)
+(*                                   decode                                   *)
+(******************************************************************************)
+
+let rec decode lst =
+  let rec repeat acc n x =
+    if n == 0 then acc else repeat (x :: acc) (n - 1) x
+  in
+  match lst with
+  | [] -> []
+  | One a :: xs -> a :: decode xs
+  | Many (c, l) :: xs -> repeat [] c l @ decode xs
+
+(******************************************************************************)
+(*                                 replicate                                  *)
+(******************************************************************************)
+
+let replicate lst n =
+  let rec repeat acc n x =
+    if n == 0 then acc else repeat (x :: acc) (n - 1) x
+  in
+  foldl [] (fun acc x -> repeat [] n x @ acc) lst
+
+(******************************************************************************)
+(*                                    drop                                    *)
+(******************************************************************************)
+
+let drop =
+  let rec drop_aux acc lst n =
+    match lst with
+    | [] -> acc
+    | x :: xs -> if n == 1 then acc @ xs else drop_aux (acc @ [ x ]) xs (n - 1)
+  in
+  drop_aux []
+
+(******************************************************************************)
+(*                                   split                                    *)
+(******************************************************************************)
+
+let split =
+  let rec split_aux acc lst n =
+    match lst with
+    | [] -> (acc, [])
+    | x :: xs ->
+        if n <= 1 then (acc @ [ x ], xs) else split_aux (acc @ [ x ]) xs (n - 1)
+  in
+  split_aux []
+
+(******************************************************************************)
+(*                                   slice                                    *)
+(******************************************************************************)
+
+let slice lst a b =
+  match split lst a with
+  | _, [] -> []
+  | _, t ->
+      let s, _ = split t (b - 1) in
+      s
+
+(******************************************************************************)
 (*                                    MAIN                                    *)
 (******************************************************************************)
 
@@ -181,7 +293,13 @@ let () =
     "flatten [One 'a'; Many [One 'b'; Many [One 'c' ;One 'd']; One 'e']] = %s\n"
     (str_lst
        (flatten
-          [ One "a"; Many [ One "b"; Many [ One "c"; One "d" ]; One "e" ] ]));
+          [
+            NodeOne "a";
+            NodeMany
+              [
+                NodeOne "b"; NodeMany [ NodeOne "c"; NodeOne "d" ]; NodeOne "e";
+              ];
+          ]));
   printf
     "compress ['a'; 'a'; 'a'; 'a'; 'b'; 'c'; 'c'; 'a'; 'a'; 'd'; 'e'; 'e'; \
      'e'; 'e'] = %s\n"
@@ -221,6 +339,44 @@ let () =
             "e";
           ]));
   printf
-        "encode ['a'; 'a'; 'a'; 'a'; 'b'; 'c'; 'c'; 'a'; 'a'; 'd'; 'e'; 'e'; 'e'; 'e'] = %s\n"
-  (str_lst_tuple (encode ["a"; "a"; "a"; "a"; "b"; "c"; "c"; "a"; "a"; "d"; "e"; "e"; "e"; "e"]));
+    "encode ['a'; 'a'; 'a'; 'a'; 'b'; 'c'; 'c'; 'a'; 'a'; 'd'; 'e'; 'e'; 'e'; \
+     'e'] = %s\n"
+    (str_lst_tuple
+       (encode
+          [
+            "a"; "a"; "a"; "a"; "b"; "c"; "c"; "a"; "a"; "d"; "e"; "e"; "e"; "e";
+          ]));
+  printf
+    "encode_mod ['a'; 'a'; 'a'; 'a'; 'b'; 'c'; 'c'; 'a'; 'a'; 'd'; 'e'; 'e'; \
+     'e'; 'e'] = %s\n"
+    (str_lst_rle
+       (encode_mod
+          [
+            "a"; "a"; "a"; "a"; "b"; "c"; "c"; "a"; "a"; "d"; "e"; "e"; "e"; "e";
+          ]));
+  printf
+    "decode [Many (4, 'a'); One 'b'; Many (2, 'c'); Many (2, 'a'); One 'd'; \
+     Many (4, 'e')] = %s\n"
+    (str_lst
+       (decode
+          [
+            Many (4, "a");
+            One "b";
+            Many (2, "c");
+            Many (2, "a");
+            One "d";
+            Many (4, "e");
+          ]));
+  printf "replicate ['a' ; 'b' ; 'c'] 3 = %s\n"
+    (str_lst (replicate [ "a"; "b"; "c" ] 3));
+  printf "drop ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'] 3 = %s\n"
+    (str_lst (drop [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h"; "i"; "j" ] 3));
+  let lst1, lst2 =
+    split [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h"; "i"; "j" ] 3
+  in
+  printf
+    "split ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'] 3 = (%s, %s)\n"
+    (str_lst lst1) (str_lst lst2);
+  printf "slice ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'] 2 6 = %s\n"
+    (str_lst (slice [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h"; "i"; "j" ] 2 6));
   ()

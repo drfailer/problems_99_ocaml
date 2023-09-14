@@ -1,0 +1,2 @@
+(library
+ (name problems_99_ocaml))
